@@ -17,7 +17,7 @@ and why. It is an independent portfolio project, not affiliated with Criteo.
 ## The result in one paragraph
 
 <!-- HEADLINE:START -->
-(filled in by `expkit run-all`)
+On 13,979,592 users from the Criteo uplift experiment, the ad campaign raised the visit rate by **+0.75 pp** (95% CI +0.71 to +0.78 pp; baseline 4.04%). The sample ratio check passed, but a model can predict assignment from the features (AUC 51.1% against 50% for a clean experiment), so the headline lift is the covariate-adjusted one and the raw difference of +1.03 pp overstates it. With a placeholder minimum worthwhile lift of +0.50 pp, the decision rule says **ship**. Treating only the top 10% of users ranked by the S-learner (LightGBM) captures 59% of the extra visits, against 51% for ranking by likelihood to visit. The A/A false positive rate measured 4.7% against 5% expected, and CUPAC cut the variance of the lift estimate by 30.5%.
 <!-- HEADLINE:END -->
 
 Full numbers: [docs/RESULTS.md](docs/RESULTS.md). The decision memo: [docs/MEMO.md](docs/MEMO.md).
@@ -103,7 +103,10 @@ streamlit run app/streamlit_app.py
 - **CUPED on Criteo uses features, not a pre-period metric**, because the file has none. On
   Hillstrom, which does have prior spend, the variance reduction is negligible.
 - **Uplift results are modest.** See RESULTS.md for how the models compare with simply ranking
-  users by likelihood to visit. The conversion outcome (rare) was not modeled, only reported.
+  users by likelihood to visit; the gap is small and the T-learner does not beat it. The exact
+  capture percentages also move with the arm imbalance (inverse-propensity-weighted curves give
+  higher shares for every model), so treat them as approximate. The conversion outcome (rare)
+  was not modeled, only reported.
 - **One experiment, one period**: no novelty, fatigue or seasonality checks are possible.
 - **The Streamlit calculator** uses the normal approximation; very small samples or rates near 0%
   or 100% need exact methods, and repeated looks at the data are not corrected for.

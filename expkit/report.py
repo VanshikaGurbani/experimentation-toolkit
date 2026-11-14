@@ -45,7 +45,20 @@ def ci_pp(lo: float, hi: float, d: int = 2) -> str:
 
 
 def pval(p: float) -> str:
-    return "below 1e-300" if p < 1e-300 else (f"{p:.2e}" if p < 1e-4 else f"{p:.4f}")
+    return "< 1e-300" if p < 1e-300 else (f"{p:.2e}" if p < 1e-4 else f"{p:.4f}")
+
+
+def peq(p: float) -> str:
+    """For sentences: 'p < 1e-300' or 'p = 0.0123'."""
+    return pval(p) if p < 1e-300 else f"= {pval(p)}"
+
+
+def scale_text(scale: float | None) -> str:
+    if not scale:
+        return "n/a"
+    if scale > 100:
+        return "more than 100x (effectively undecidable)"
+    return f"{scale:.1f}x current sample"
 
 
 def table(header: list[str], rows: list[list[str]]) -> str:
@@ -177,7 +190,7 @@ def build_results_md(res: dict, figs: dict[str, str]) -> str:
     s = d["srm"]
     A(
         f"**Sample ratio mismatch (SRM).** Designed split 15% control and 85% treatment. "
-        f"Chi-square = {s['chi2']:.3f}, p = {pval(s['p_value'])}, alarm threshold p < 0.001. "
+        f"Chi-square = {s['chi2']:.3f}, p {peq(s['p_value'])}, alarm threshold p < 0.001. "
         f"Result: **{'FLAGGED' if s['flagged'] else 'passes'}**. "
         "The 85% / 15% design is the dataset's documented allocation, so it is an assumption "
         "about the design, not something the file proves.\n"
@@ -206,7 +219,7 @@ def build_results_md(res: dict, figs: dict[str, str]) -> str:
         f"predict who was treated from the 12 features reaches an AUC of **{pct(bal['auc'], 2)}** "
         f"on the test split ({n_(bal['n_test'])} users); a clean randomized experiment gives 50%. "
         f"The standard error of the AUC under pure randomization is {pct(bal['null_se'], 3)}, so "
-        f"z = {bal['z']:.1f} and p = {pval(bal['p_value'])}. Balance check at p < 0.001: "
+        f"z = {bal['z']:.1f} and p {peq(bal['p_value'])}. Balance check at p < 0.001: "
         f"**{'FLAGGED' if bal['flagged'] else 'passes'}**. "
         + (
             "The imbalance is small in size (the model barely beats a coin flip) but far beyond "
@@ -285,7 +298,7 @@ def build_results_md(res: dict, figs: dict[str, str]) -> str:
                 [
                     pp(r["threshold"], 2),
                     _action_text(r["action"]),
-                    "n/a" if not r["sample_scale"] else f"{r['sample_scale']:.1f}x current sample",
+                    scale_text(r["sample_scale"]),
                     _action_text(r["action_raw"]),
                 ]
                 for r in e["threshold_sensitivity"]
@@ -458,7 +471,7 @@ def build_results_md(res: dict, figs: dict[str, str]) -> str:
         f"**Hillstrom email test ({n_(hs['n'])} customers), outcome = spend per customer, covariate = "
         f"spend in the 12 months before the email.** Correlation between spend and prior spend: "
         f"{hs['corr_spend_history']:.3f}. SRM across the three arms (designed 1:1:1): "
-        f"p = {pval(hs['srm_p_value'])}, {'FLAGGED' if hs['srm_flagged'] else 'passes'}.\n"
+        f"p {peq(hs['srm_p_value'])}, {'FLAGGED' if hs['srm_flagged'] else 'passes'}.\n"
     )
     A(
         table(
@@ -680,8 +693,9 @@ def build_memo_md(res: dict) -> str:
     A(f"## Recommendation: {verdict}\n")
     if act == "SHIP":
         A(
-            f"Show the ad. Visit rate rose from {pct(raw['mean_control'], 2)} in the control group by "
-            f"{pp(v['diff'], 2)} (95% CI {ci_pp(v['ci_low'], v['ci_high'], 2)}), {basis_text}, "
+            f"Show the ad. Visit rate rose from {pct(v['mean_control'], 2)} without it to "
+            f"{pct(v['mean_treatment'], 2)} with it, a lift of {pp(v['diff'], 2)} "
+            f"(95% CI {ci_pp(v['ci_low'], v['ci_high'], 2)}), {basis_text}, "
             f"measured on {n_(n_total)} users. The whole interval sits above the {pp(thr, 2)} "
             f"minimum lift we assumed is needed to justify the campaign, so more data would not "
             f"change the call at that threshold.\n"
@@ -694,16 +708,15 @@ def build_memo_md(res: dict) -> str:
         )
     elif act == "RUN_LONGER":
         scale = e["decision"]["sample_scale"]
-        scale_text = (
-            f"If the estimate holds, about {scale:.1f} times the current sample is needed to "
-            f"settle it."
+        extra = (
+            f"If the estimate holds, the sample needed to settle it is: {scale_text(scale)}."
             if scale
             else ""
         )
         A(
             f"Keep running. The measured lift is {pp(v['diff'], 2)} (95% CI "
             f"{ci_pp(v['ci_low'], v['ci_high'], 2)}), {basis_text}, and the interval straddles "
-            f"the {pp(thr, 2)} threshold. {scale_text}\n"
+            f"the {pp(thr, 2)} threshold. {extra}\n"
         )
     else:
         A(f"The data failed its integrity check: {e['decision']['reason']}\n")
@@ -717,12 +730,12 @@ def build_memo_md(res: dict) -> str:
                     "Was the split as designed?",
                     f"{'No, flagged' if srm['flagged'] else 'Yes'}: "
                     f"{pct(srm['observed_treated_share'], 2)} treated against 85% designed, "
-                    f"SRM p = {pval(srm['p_value'])}",
+                    f"SRM p {peq(srm['p_value'])}",
                 ],
                 [
                     "Were the arms comparable?",
                     f"{'Not fully' if bal['flagged'] else 'Yes'}: the 12 features predict who was "
-                    f"treated with AUC {pct(bal['auc'], 2)} (50% is clean), p = {pval(bal['p_value'])}",
+                    f"treated with AUC {pct(bal['auc'], 2)} (50% is clean), p {peq(bal['p_value'])}",
                 ],
                 [
                     f"Effect on visits ({basis}, primary)",
@@ -840,7 +853,7 @@ def build_headline(res: dict) -> str:
         "<!-- HEADLINE:START -->\n"
         f"On {n_(n_total)} users from the Criteo uplift experiment, the ad campaign raised the "
         f"visit rate by **{pp(v['diff'], 2)}** (95% CI {ci_pp(v['ci_low'], v['ci_high'], 2)}; "
-        f"control rate {pct(raw['mean_control'], 2)}). "
+        f"baseline {pct(v['mean_control'], 2)}). "
         f"{balance_phrase}"
         f"With a placeholder minimum worthwhile lift of {pp(e['practical_threshold'], 2)}, the "
         f"decision rule says **{_action_text(e['decision']['action'])}**. "
