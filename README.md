@@ -41,9 +41,42 @@ The data preparation is **SQL on DuckDB**, and the SQL is in [`sql/`](sql): load
 raw file, the train / validation / test split, arm summaries for the SRM check, the feature balance
 check, and the uplift-by-decile table.
 
+## Notebooks
+
+Five notebooks walk through the project the way a data scientist would. Each opens with a
+plain-English question and closes with a "what this means" note and a "what is weak" note. They
+are committed **with their outputs, run on the real Criteo and Hillstrom data**. Numbers in their
+text are computed by code or read from `docs/results/results.json`, and wherever a notebook
+recomputes something the pipeline also reports, it prints a check line that must say "matches".
+All charts use a colour-blind-safe palette and are also saved as PNGs in [`docs/figures/`](docs/figures).
+
+| Notebook | The question it answers |
+|---|---|
+| [01 EDA of the Criteo data](notebooks/01_eda_criteo.ipynb) | What is in the file, how rare are visits and purchases, and do treated and control users look alike? (exact DuckDB aggregates, no 14M-row DataFrame) |
+| [02 Validity and effect](notebooks/02_experiment_validity_and_effect.ipynb) | Can we trust the experiment (sample ratio, balance), how big is the lift (raw vs adjusted), and how does ship / do not ship depend on the threshold? |
+| [03 CUPED, power and A/A](notebooks/03_cuped_power_and_aa.ipynb) | How much noise does CUPED remove, how many users are needed, and does the toolkit's test keep its promises (A/A false positives, power calibration)? |
+| [04 Uplift and targeting](notebooks/04_uplift_and_targeting.ipynb) | Who should see the campaign? Qini curves with bootstrap bands, capture shares, uplift by decile, causal forest. |
+| [05 Hillstrom sanity check](notebooks/05_hillstrom_sanity.ipynb) | Does the toolkit work on a second experiment, and where did CUPED not help? |
+
+![Raw campaign lift by feature group](docs/figures/eda_lift_by_feature.png)
+
+*Notebook 01: the raw campaign lift changes across users, which is why targeting is worth testing.*
+
+![Raw versus adjusted lift](docs/figures/validity_forest_lift.png)
+
+*Notebook 02: the raw lift overstates the covariate-adjusted lift.*
+
+![Decision by threshold](docs/figures/validity_threshold_sensitivity.png)
+
+*Notebook 02: what the ship / run longer / do not ship rule says for each practical threshold.*
+
+![Qini curves](docs/figures/uplift_qini_curves.png)
+
+*Notebook 04: Qini curves with 95% bootstrap bands, and the gain over the likelihood-to-visit baseline.*
+
 ## How it was tested
 
-- **Unit tests (99)** check each statistic against a textbook value, a second library (statsmodels,
+- **Unit tests** (131 tests in total, with the notebook checks below) check each statistic against a textbook value, a second library (statsmodels,
   scipy) or a brute-force reference, and by simulation: the 95% intervals cover the truth about 95%
   of the time, the SRM check false-alarms at its stated rate, CUPED leaves the estimate unbiased,
   and the Qini curve of a random score is flat.
@@ -53,6 +86,10 @@ check, and the uplift-by-decile table.
 - **Checks on the real data** (in `docs/RESULTS.md`): an A/A test (splitting one arm in two should
   find nothing), and a power calibration (samples of the size the calculator recommends should
   detect the effect about as often as it promises).
+- **Notebook checks**: tests confirm the committed notebooks were executed on the real data, hold
+  no errors, contain every recomputed-number check as "matches", have their charts embedded and stay
+  a reasonable size. CI also runs all five notebooks end to end on a small synthetic fixture
+  (`expkit run-notebooks --fixture`), never on the 14M real rows.
 - Every number in the results, the memo and the headline above is written by code from
   `docs/results/results.json`. Nothing is typed by hand. A test also checks that no em dash appears
   anywhere in the repository.
@@ -72,15 +109,19 @@ Python 3.12 or 3.13 (3.14 is not supported by the pinned versions).
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[causal,serve,dev]"   # on macOS or Linux: .venv/bin/python
+.venv/Scripts/python -m pip install -e ".[causal,serve,dev,notebooks]"   # on macOS or Linux: .venv/bin/python
 expkit fetch-data      # downloads Criteo (about 311 MB) and Hillstrom (about 4 MB) into data/raw
 expkit run-all         # about 8 minutes on a 16-core machine; rewrites docs/ and the README headline
-pytest                 # 99 tests, no data download needed
+pytest                 # 131 tests, no data download needed
 ruff check . && ruff format --check .
 streamlit run app/streamlit_app.py
+expkit run-notebooks   # re-executes the five notebooks on the real data, saving outputs in place
 ```
 
-`expkit run-all --fixture` runs the same pipeline on a small synthetic dataset (this is what CI does).
+`expkit run-all --fixture` runs the same pipeline on a small synthetic dataset, and
+`expkit run-notebooks --fixture --out some/folder` runs the notebooks on that fixture and writes the
+executed copies to `some/folder` (this is what CI does). Open the notebooks in VS Code, or with
+`pip install jupyterlab` and `jupyter lab`.
 
 ## Data and licence
 
@@ -111,6 +152,9 @@ are **not included** and keep their own licences.
   higher shares for every model), so treat them as approximate. The conversion outcome (rare)
   was not modeled, only reported.
 - **One experiment, one period**: no novelty, fatigue or seasonality checks are possible.
+- **The notebooks show one run.** Their saved outputs come from the real data on one machine with
+  one seed. Re-running them needs the data downloaded and the pipeline run first (they read
+  `docs/results/results.json` and the DuckDB file built by `expkit run-all`).
 - **The Streamlit calculator** uses the normal approximation; very small samples or rates near 0%
   or 100% need exact methods, and repeated looks at the data are not corrected for.
 - **EconML causal forest** was fitted on a 200,000-user subsample because forests are slow; the
@@ -121,9 +165,12 @@ are **not included** and keep their own licences.
 
 ```
 expkit/      package: power, srm, balance, inference, adjust, cuped, decision, uplift, qini,
-             experiment (the pipeline), report (writes the docs), cli
+             experiment (the pipeline), report (writes the docs), nb and nb_run (notebook
+             helpers and runner), cli
 sql/         the DuckDB SQL: load, split, summaries, balance, deciles
 app/         Streamlit calculator
+notebooks/   five Jupyter notebooks, committed with outputs
 tests/       pytest suite (synthetic fixtures only)
-docs/        RESULTS.md and MEMO.md (generated), results/ (results.json and figures)
+docs/        RESULTS.md and MEMO.md (generated), results/ (results.json and pipeline figures),
+             figures/ (PNGs saved by the notebooks)
 ```

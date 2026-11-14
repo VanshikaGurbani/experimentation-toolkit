@@ -2,7 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 EM, EN = chr(0x2014), chr(0x2013)
-SUFFIXES = {".py", ".md", ".sql", ".yml", ".yaml", ".toml", ".txt"}
+SUFFIXES = {".py", ".md", ".sql", ".yml", ".yaml", ".toml", ".txt", ".ipynb"}
 SKIP = {".venv", "data", ".git", ".ruff_cache", ".pytest_cache", "expkit.egg-info"}
 
 

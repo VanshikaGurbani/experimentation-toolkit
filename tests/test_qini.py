@@ -96,6 +96,21 @@ def test_bootstrap_is_reproducible(rng):
     assert np.array_equal(a, b)
 
 
+def test_bootstrap_curves_are_optional_and_do_not_change_the_draws(rng):
+    x, t, y, tau = make(rng, n=4000)
+    plain = qini_bootstrap(y, t, {"m": tau}, n_boot=6, n_bins=20, seed=5)["m"]
+    full = qini_bootstrap(y, t, {"m": tau}, n_boot=6, n_bins=20, seed=5, return_curves=True)["m"]
+    assert "curve" not in plain
+    assert full["curve"].shape == (6, 21)
+    assert np.array_equal(plain["coefficient"], full["coefficient"])
+    assert np.all(full["curve"][:, 0] == 0)
+    # the last point of each curve is that replicate's average effect, shared by every model
+    assert np.allclose(
+        full["curve"][:, -1],
+        qini_bootstrap(y, t, {"m": tau}, n_boot=6, n_bins=20, seed=5)["_ate"]["ate"],
+    )
+
+
 def test_length_mismatch():
     with pytest.raises(ValueError):
         qini_curve(np.zeros(5), np.zeros(4), np.zeros(5))

@@ -105,11 +105,14 @@ def qini_bootstrap(
     n_bins: int = 100,
     capture_fractions: tuple[float, ...] = (0.1, 0.3),
     seed: int = 0,
+    return_curves: bool = False,
 ) -> dict[str, dict[str, np.ndarray]]:
     """Poisson-bootstrap distributions of the Qini coefficient and capture shares.
 
     Returns {model: {"coefficient": array, "capture@0.1": array, ...}} plus the key "_ate".
     Arrays are aligned across models, so model differences can be taken replicate by replicate.
+    With `return_curves`, each model also gets "curve", an (n_boot, n_bins + 1) array of the
+    bootstrapped Qini curves (used for confidence bands). The random draws are unchanged.
     """
     n = len(y)
     edges = _bin_edges(n, n_bins)
@@ -123,6 +126,9 @@ def qini_bootstrap(
         name: {"coefficient": np.empty(n_boot), **{f"capture@{f}": np.empty(n_boot) for f in idx}}
         for name in scores
     }
+    if return_curves:
+        for name in scores:
+            out[name]["curve"] = np.empty((n_boot, n_bins + 1))
     out["_ate"] = {"ate": np.empty(n_boot)}
     rng = np.random.default_rng(seed)
     for b in range(n_boot):
@@ -136,6 +142,8 @@ def qini_bootstrap(
             sizes = np.add.reduceat(ws, starts)
             x, q, ate, coef = _curve_from_bin_sums(n_t, n_c, y_t, y_c, sizes)
             out[name]["coefficient"][b] = coef
+            if return_curves:
+                out[name]["curve"][b] = q
             for f, i in idx.items():
                 out[name][f"capture@{f}"][b] = q[i] / ate if ate != 0 else np.nan
         out["_ate"]["ate"][b] = ate

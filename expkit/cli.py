@@ -4,6 +4,7 @@ expkit fetch-data          download the two public datasets into data/raw
 expkit run-all             run every stage on the real data, then write the report
 expkit run-all --fixture   same pipeline on a small synthetic dataset (CI smoke test)
 expkit report              rebuild docs/RESULTS.md and docs/MEMO.md from results.json
+expkit run-notebooks       execute the notebooks in notebooks/ (add --fixture --out DIR for CI)
 """
 
 from __future__ import annotations
@@ -53,10 +54,18 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--no-causal-forest", action="store_true")
     run.add_argument("--out", type=Path, default=data.ROOT / "docs")
     sub.add_parser("report").add_argument("--out", type=Path, default=data.ROOT / "docs")
+    nbp = sub.add_parser("run-notebooks", help="execute the notebooks in notebooks/")
+    nbp.add_argument("--fixture", action="store_true", help="synthetic data, for CI")
+    nbp.add_argument("--out", type=Path, help="where to write the executed copies")
     args = ap.parse_args(argv)
 
     if args.cmd == "fetch-data":
         fetch_data()
+        return
+    if args.cmd == "run-notebooks":
+        from .nb_run import run_notebooks
+
+        run_notebooks(fixture=args.fixture, out_dir=args.out)
         return
     if args.cmd == "report":
         write_report(args.out / "results" / "results.json", args.out, data.ROOT / "README.md")
