@@ -794,33 +794,25 @@ def build_memo_md(res: dict) -> str:
         f"(`expkit.decision.decide`). If break-even is above {pp(v['ci_low'], 2)}, the lower end "
         "of the interval, the call is no longer safe.\n"
         "- **Revenue, not visits.** Visits are an early signal. The memo makes no revenue claim.\n"
-        "- **A cleaner experiment.** If assignment were re-randomized and the balance check "
-        "passed, the raw and adjusted estimates should agree and the adjustment could be dropped.\n"
     )
     A("## Risks and limits\n")
     A(
-        f"- Only {pct(e['exposed_share_of_treated'], 1)} of treated users actually saw the ad, so "
-        "this is the effect of being assigned to the campaign (intent to treat), not of seeing "
-        "one ad.\n"
-        "- The adjusted estimate relies on models of the features. It removes the imbalance we can "
-        "measure, not one we cannot.\n"
-        "- One experiment, one period. No novelty or fatigue check is possible from this file.\n"
-        "- The 85% / 15% design is the dataset's documented allocation, taken as given.\n"
-        "- Features are anonymized, so the targeting model cannot be explained in business terms. "
+        f"- Only {pct(e['exposed_share_of_treated'], 1)} of treated users saw the ad, so this is the "
+        "effect of being assigned to the campaign, not of seeing one ad.\n"
+        "- The adjusted estimate removes the imbalance the features reveal, not one they cannot.\n"
+        "- One experiment, one period, an allocation taken from the dataset's documentation, and "
+        "no guardrail metric beyond a raw conversion rate.\n"
         + (
-            "The best uplift model beats the likelihood-to-visit ranking, but only modestly.\n"
+            "- The best uplift model beats the likelihood-to-visit ranking, but only modestly.\n"
             if beats
-            else "No uplift model reliably beats simply ranking by likelihood to visit.\n"
+            else "- No uplift model reliably beats simply ranking by likelihood to visit.\n"
         )
-        + "- No guardrail metrics exist in the file beyond conversion, which is only available raw.\n"
     )
     A("## Next steps\n")
     A(
         "1. Replace the placeholder threshold with the real break-even lift and re-run the rule.\n"
-        "2. Keep a small holdout (control) after launch to watch for the effect fading, and "
-        "re-randomize it so the balance check passes.\n"
-        "3. If targeting is wanted, test it with a randomized comparison of targeted against "
-        "untargeted treatment before relying on the model.\n"
+        "2. After launch, keep a re-randomized holdout to watch for the effect fading.\n"
+        "3. Test any targeting rule against untargeted treatment before relying on the model.\n"
     )
     return "\n".join(L)
 
