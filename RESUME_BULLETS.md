@@ -41,8 +41,7 @@ Every number below is read from `docs/RESULTS.md` (written by `expkit run-all` f
    "proved the ad caused".
 7. **Data licence.** The Criteo dataset is CC BY-NC-SA 4.0 (non-commercial, share-alike). It is
    not stored in the repository. Fine for a portfolio, but do not redistribute it.
-8. **Repository housekeeping.** There is no `LICENSE` file yet, nothing has been pushed to
-   GitHub, and the Streamlit calculator is not deployed. Add a licence and a live link before
-   putting the repo on your resume.
+8. **Repository housekeeping.** The repo has an MIT `LICENSE` for the code. The Streamlit
+   calculator is not deployed, so do not list a live link until one exists.
 9. **Hillstrom CUPED.** The pre-period spend barely helped there (0.03% variance reduction).
    Do not claim CUPED helped on Hillstrom; the 30.5% is from Criteo with a model-based covariate.

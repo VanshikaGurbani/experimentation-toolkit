@@ -82,7 +82,10 @@ streamlit run app/streamlit_app.py
 
 `expkit run-all --fixture` runs the same pipeline on a small synthetic dataset (this is what CI does).
 
-## Data
+## Data and licence
+
+The code in this repository is released under the MIT licence ([LICENSE](LICENSE)). The datasets
+are **not included** and keep their own licences.
 
 - **Criteo Uplift Modeling Dataset v2.1** (Diemert et al., 2018), 13,979,592 rows, licence
   CC BY-NC-SA 4.0 (non-commercial use, share-alike). Downloaded from the public mirror
