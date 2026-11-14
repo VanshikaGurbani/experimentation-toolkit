@@ -1,0 +1,6 @@
+# Minimal install for the Streamlit calculator (app/streamlit_app.py). The full toolkit is
+# installed with: pip install -e ".[causal,serve,dev]"
+streamlit==1.67.0
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
