@@ -1,6 +1,6 @@
 # Experimentation Toolkit
 
-> A tested Python toolkit for A/B tests (sample size, validity checks, adjusted effect, variance reduction, ship/no-ship decision, uplift targeting), applied end to end to a 14-million-user ad experiment from Criteo.
+A tested Python toolkit for A/B tests (sample size, validity checks, adjusted effect, variance reduction, ship/no-ship decision, uplift targeting), applied end to end to a 14-million-user ad experiment from Criteo.
 
 ## Overview
 
