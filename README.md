@@ -2,6 +2,8 @@
 
 A tested Python toolkit for A/B tests (sample size, validity checks, adjusted effect, variance reduction, ship/no-ship decision, uplift targeting), applied end to end to a 14-million-user ad experiment from Criteo.
 
+**Live demo:** [sample size calculator](https://experimentation-toolkit.streamlit.app/) (Streamlit)
+
 ## Overview
 
 `expkit` packages the steps of a rigorous A/B test analysis as a reusable library: power and sample size, sample ratio mismatch (SRM) and balance checks, confidence intervals, a doubly robust adjusted effect, CUPED variance reduction, a decision rule, and uplift models for targeting. The project runs the whole workflow on the public **Criteo uplift dataset** and ends with a one-page decision memo ([docs/MEMO.md](docs/MEMO.md)) and five notebooks with EDA and charts.
@@ -51,7 +53,7 @@ All numbers are written by code from `docs/results/results.json`. Full tables: [
 | Decision rule | `expkit/decision.py` | SHIP, DO NOT SHIP, RUN LONGER or INVALID, with guardrail metrics. |
 | Uplift models | `expkit/uplift.py` | S-learner, T-learner, response-model baseline, causal forest. |
 | Qini curve | `expkit/qini.py` | Targeting evaluation with bootstrap intervals. |
-| Calculator | `app/streamlit_app.py` | Streamlit sample size calculator. |
+| Calculator | `app/streamlit_app.py` | Streamlit sample size calculator ([live](https://experimentation-toolkit.streamlit.app/)). |
 
 ## Notebooks
 
@@ -102,7 +104,7 @@ The Criteo data is described as randomized and the SRM check agrees, yet a model
 - Uplift gains over the likelihood-to-visit baseline are modest, and the T-learner does not beat it.
 - One experiment, one period: no novelty, fatigue or seasonality checks.
 - The notebook outputs come from one run with one seed.
-- The calculator uses a normal approximation and is not deployed.
+- The calculator uses a normal approximation, so very small samples or rates near 0% or 100% need exact methods.
 
 ## Data and licence
 
