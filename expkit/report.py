@@ -821,7 +821,7 @@ def build_memo_md(res: dict) -> str:
 
 
 def build_headline(res: dict) -> str:
-    """Plain-English summary for the README. Every number is read from results.json."""
+    """README results block. Every number is read from results.json."""
     e, u, val, cr = res["effect"], res["uplift"], res["validation"], res["cuped"]["criteo"]
     v, raw, bal = e["visit"], e["visit_raw"], e["balance"]
     sel = u["selected_on_validation"]
@@ -829,68 +829,46 @@ def build_headline(res: dict) -> str:
     n_total = res["design"]["arms"]["control"]["n"] + res["design"]["arms"]["treatment"]["n"]
     treated_share = res["design"]["srm"]["observed_treated_share"]
     vr = cr["cupac"]["variance_reduction"]
-    action = e["decision"]["action"]
     flips = {r["action"] for r in e["threshold_sensitivity"]}
+    srm_text = "passed" if not res["design"]["srm"]["flagged"] else "FAILED"
 
-    def per1000(x: float) -> str:
-        return f"{x * 1000:.1f}"
-
-    worked = "Yes." if v["ci_low"] > 0 else "Unclear." if v["ci_high"] > 0 else "No."
-    srm_text = "check passed" if not res["design"]["srm"]["flagged"] else "CHECK FAILED"
     if bal["flagged"]:
-        trust = (
-            f"- **Can we trust the experiment?** Mostly. The group sizes matched the plan "
-            f"({srm_text}). But the two groups were not perfectly alike: a model could tell who "
-            f"got the ad slightly better than a coin flip (score {pct(bal['auc'], 1)}, where 50% "
-            f"means a perfectly fair split). So the plain difference between the groups "
-            f"({pp(raw['diff'], 2)}) is a little too high, and this project reports the "
-            f"corrected figure ({pp(v['diff'], 2)}) instead."
+        validity = (
+            f"- **Validity:** the sample ratio check {srm_text}, but a model can predict "
+            f"assignment from the features (AUC {pct(bal['auc'], 1)}; 50% is a clean "
+            f"experiment). The covariate-adjusted lift is therefore the headline, and the raw "
+            f"difference of {pp(raw['diff'], 2)} overstates it."
         )
     else:
-        trust = (
-            "- **Can we trust the experiment?** Yes. The group sizes matched the plan and the "
-            "two groups looked alike, so the plain difference between them is used."
+        validity = (
+            f"- **Validity:** the sample ratio check {srm_text} and the balance check passed "
+            f"(AUC {pct(bal['auc'], 1)})."
         )
-    threshold_phrase = (
-        " The answer depends on that bar: a higher bar would turn it into 'run longer' or "
-        "'do not ship' (see notebook 02)."
-        if len(flips) > 1
-        else ""
+    threshold_note = (
+        " The call changes at higher thresholds (notebook 02)." if len(flips) > 1 else ""
     )
     if vr > 0:
-        noise = (
-            f"Using each user's features to remove noise (CUPAC) made the estimate "
-            f"{pct(vr, 1)} less noisy, like getting that much more data for free."
-        )
+        noise = f"CUPAC cut the variance of the lift estimate by {pct(vr, 1)}"
     else:
-        noise = "Using each user's features to remove noise (CUPAC) did not help here."
+        noise = "CUPAC did not reduce the variance of the lift estimate"
     return (
         "<!-- HEADLINE:START -->\n"
-        f"**What was tested.** {n_(n_total)} people in a Criteo advertising experiment were "
-        f"randomly split: {pct(treated_share, 0)} could see an ad campaign (the *treatment* "
-        f"group) and the rest were held back for comparison (the *control* group). The question: "
-        f"does the campaign make more people visit the advertiser's website?\n\n"
-        f"**What happened, in plain words**\n\n"
-        f"- **Did the ad work?** {worked} Out of every 1,000 people who were not shown the campaign, "
-        f"about {per1000(v['mean_control'])} visited. With the campaign, about "
-        f"{per1000(v['mean_treatment'])} did. That is roughly **{per1000(v['diff'])} extra "
-        f"visits per 1,000 people** ({pp(v['diff'], 2)}; a *percentage point* is one visit per "
-        f"100 people). The true value is very likely between {per1000(v['ci_low'])} and "
-        f"{per1000(v['ci_high'])} per 1,000.\n"
-        f"{trust}\n"
-        f"- **Should the company ship it?** The decision rule says **{_action_text(action)}**. "
-        f"It compares the result with a bar for 'worth the cost': at least "
-        f"{pp(e['practical_threshold'], 2)} extra visits. That bar is a placeholder, because "
-        f"the dataset has no costs or revenue.{threshold_phrase}\n"
-        f"- **Who should see the ad?** Not everyone responds equally. Showing it only to the "
-        f"top 10% of people ranked by a targeting model ({MODEL_LABELS[sel]}) reaches "
-        f"{pct(best['capture@0.1'], 0)} of all the extra visits. Simply picking the people most "
-        f"likely to visit anyway reaches {pct(resp['capture@0.1'], 0)}. The model is better, but "
-        f"not by a huge margin.\n"
-        f"- **Does the toolkit itself work?** When one group was split in two at random (so "
-        f"there is truly no difference), the test wrongly claimed a difference "
-        f"{pct(val['aa']['false_positive_rate'], 1)} of the time, close to the 5% it promises. "
-        f"{noise}\n"
+        f"**Setup.** {n_(n_total)} users in the Criteo uplift experiment: "
+        f"{pct(treated_share, 0)} assigned to an ad campaign, the rest held out as control. "
+        f"Outcome: visiting the advertiser's website.\n\n"
+        f"- **Effect:** the campaign raised the visit rate from {pct(v['mean_control'], 2)} to "
+        f"{pct(v['mean_treatment'], 2)}, a lift of **{pp(v['diff'], 2)}** (95% CI "
+        f"{ci_pp(v['ci_low'], v['ci_high'], 2)}), about {v['diff'] * 1000:.1f} extra visits per "
+        f"1,000 users.\n"
+        f"{validity}\n"
+        f"- **Decision:** **{_action_text(e['decision']['action'])}**, against a placeholder "
+        f"minimum worthwhile lift of {pp(e['practical_threshold'], 2)} (the data has no cost "
+        f"or revenue).{threshold_note}\n"
+        f"- **Targeting:** treating only the top 10% of users ranked by the {MODEL_LABELS[sel]} "
+        f"captures {pct(best['capture@0.1'], 0)} of the extra visits, against "
+        f"{pct(resp['capture@0.1'], 0)} for ranking by likelihood to visit.\n"
+        f"- **Toolkit checks:** the A/A false positive rate measured "
+        f"{pct(val['aa']['false_positive_rate'], 1)} against 5% expected, and {noise}.\n"
         "<!-- HEADLINE:END -->"
     )
 
