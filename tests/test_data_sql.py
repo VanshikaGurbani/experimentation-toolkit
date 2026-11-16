@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from expkit import data
-from expkit.synth import make_criteo_like
+from expkit.synth import make_criteo_like, write_fixture_files
 
 
 def test_arm_summary_matches_pandas(fixture_db):
@@ -87,3 +87,16 @@ def test_hillstrom_sql_and_arms(tmp_path, hillstrom_df):
     assert summ["n"].sum() == len(hillstrom_df)
     assert set(summ["segment"]) == {"Mens E-Mail", "Womens E-Mail", "No E-Mail"}
     con.close()
+
+
+def test_read_only_connections_can_share_a_file_and_create_temp_objects(tmp_path):
+    criteo, hill = write_fixture_files(tmp_path, n=2000)
+    db = tmp_path / "shared.duckdb"
+    con = data.connect(db)
+    data.build_criteo(con, criteo)
+    con.close()
+    first, second = data.connect(db, read_only=True), data.connect(db, read_only=True)
+    data.build_hillstrom(first, hill, temp=True)
+    assert data.has_table(first, "hillstrom") and not data.has_table(second, "hillstrom")
+    n = "SELECT count(*) FROM criteo_split"
+    assert first.execute(n).fetchone() == second.execute(n).fetchone()

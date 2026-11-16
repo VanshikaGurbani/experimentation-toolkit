@@ -21,8 +21,12 @@ def sql_text(name: str, **params: str) -> str:
     return text
 
 
-def connect(db_path: str | Path | None = None) -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect(str(db_path) if db_path else ":memory:")
+def connect(
+    db_path: str | Path | None = None, read_only: bool = False
+) -> duckdb.DuckDBPyConnection:
+    """Open the DuckDB file (or an in-memory database). Read-only connections can be shared by
+    several processes at once, a read-write connection is exclusive."""
+    con = duckdb.connect(str(db_path) if db_path else ":memory:", read_only=read_only)
     con.execute("SET preserve_insertion_order = true")
     return con
 
@@ -38,9 +42,14 @@ def build_criteo(con: duckdb.DuckDBPyConnection, csv_path: str | Path) -> None:
     con.execute(sql_text("02_split.sql"))
 
 
-def build_hillstrom(con: duckdb.DuckDBPyConnection, csv_path: str | Path) -> None:
+def build_hillstrom(
+    con: duckdb.DuckDBPyConnection, csv_path: str | Path, temp: bool = False
+) -> None:
     path = str(Path(csv_path).resolve()).replace("\\", "/").replace("'", "''")
-    con.execute(sql_text("07_hillstrom_load.sql", CSV=path))
+    sql = sql_text("07_hillstrom_load.sql", CSV=path)
+    if temp:  # for read-only connections: a temporary table that lives in this session only
+        sql = sql.replace("CREATE OR REPLACE TABLE", "CREATE OR REPLACE TEMP TABLE")
+    con.execute(sql)
 
 
 def has_table(con: duckdb.DuckDBPyConnection, name: str) -> bool:

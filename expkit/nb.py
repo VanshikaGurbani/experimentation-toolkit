@@ -158,10 +158,14 @@ def load(mode: str | None = None) -> Context:
                 f"{p} not found. Run `expkit fetch-data` then `expkit run-all`, "
                 f"or set {MODE_ENV}=fixture."
             )
-    con = data.connect(db)
-    con.execute(data.sql_text("02_split.sql"))
+    # Read-only, so several notebooks (kernels) can be open on the same file at once. Anything
+    # missing from the file is created as a temporary object in this connection only.
+    con = data.connect(db, read_only=True)
+    if not data.has_table(con, "criteo_split"):
+        split_sql = data.sql_text("02_split.sql").replace("OR REPLACE VIEW", "OR REPLACE TEMP VIEW")
+        con.execute(split_sql)
     if not data.has_table(con, "hillstrom"):
-        data.build_hillstrom(con, hill)
+        data.build_hillstrom(con, hill, temp=True)
     results = json.loads(res.read_text(encoding="utf-8"))
     return Context(
         "real",
